@@ -121,7 +121,7 @@ curl -sS http://127.0.0.1:8787/api/health
 If the systemd service step cannot be completed automatically:
 
 - Tell the user the install is not complete.
-- Print the exact commands from `scripts/install-systemd-user.sh` for them to run in a normal terminal.
+- Print exactly one command for them to run in a normal terminal: `cd <repo> && scripts/install-systemd-user.sh`.
 - Stop and wait for the user to confirm the service was installed.
 - Continue only after `curl -sS http://127.0.0.1:8787/api/health` succeeds.
 
