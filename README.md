@@ -54,14 +54,14 @@ Goal:
 - Use HOST=0.0.0.0 and PORT=8787.
 - Use ~/workspace as the default working directory unless I already have a better local workspace path.
 - Automatically install missing host dependencies where possible, including Node.js, npm, git, curl, tmux, Tailscale, Codex CLI, and Claude Code CLI.
-- If systemd user services are available, install MobileCodex as a background user service.
+- Install MobileCodex as a systemd user service. This is required so the server keeps running after Codex/Claude Code exits.
 - Do not wait for an interactive sudo password inside Codex/Claude Code. If privileged commands are needed and non-interactive sudo is unavailable, print the exact commands I must run in a normal terminal, stop, and wait for me.
 
 Instructions:
 1. Clone or update the repository.
 2. Read AGENTS.md and follow it.
 3. Run scripts/bootstrap-host.sh.
-4. Run scripts/install-systemd-user.sh if systemd user services are available.
+4. Run scripts/install-systemd-user.sh. If the service cannot be installed automatically, tell me clearly that this step is unfinished and print the exact commands I must run in a normal terminal.
 5. Run curl http://127.0.0.1:8787/api/health.
 6. If Tailscale is not installed or not logged in, stop and ask me to complete that manual step. Do not try to handle browser login or account registration yourself.
 7. Do not read, print, or commit real .env files, tokens, certificates, private keys, or shell history.

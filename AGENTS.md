@@ -116,7 +116,14 @@ curl -sS http://127.0.0.1:8787/api/health
 
 `scripts/bootstrap-host.sh` is the default one-shot installer. It checks host tools, creates `.env` if missing, installs npm dependencies, and builds the web app.
 
-`scripts/install-systemd-user.sh` installs `mobilecodex.service` as a systemd user service when available.
+`scripts/install-systemd-user.sh` installs `mobilecodex.service` as a systemd user service. Treat this as required for a complete install: the user should be able to close Codex/Claude Code and still open MobileCodex from the phone.
+
+If the systemd service step cannot be completed automatically:
+
+- Tell the user the install is not complete.
+- Print the exact commands from `scripts/install-systemd-user.sh` for them to run in a normal terminal.
+- Stop and wait for the user to confirm the service was installed.
+- Continue only after `curl -sS http://127.0.0.1:8787/api/health` succeeds.
 
 `scripts/doctor-host.sh` is a preflight checker for Node, npm, Codex CLI, Claude Code CLI, tmux, and Tailscale.
 
