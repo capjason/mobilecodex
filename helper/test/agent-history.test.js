@@ -42,8 +42,15 @@ test('lists codex history sessions grouped by session id', async (t) => {
       title: 'latest prompt',
       lastActivityAt: '1970-01-01T00:00:20.000Z',
       resumeTarget: 'codex-a',
+      repoPath: '/workspace/app',
       source: 'codex-history'
     }
+  ]);
+
+  const allSessions = await listAgentHistorySessions({ agent: 'codex', repoPath: '~', homeDir: temp });
+  assert.deepEqual(allSessions.map((session) => [session.id, session.repoPath]), [
+    ['codex-b', '/workspace/other'],
+    ['codex-a', '/workspace/app']
   ]);
 });
 
@@ -68,7 +75,13 @@ test('lists claude project sessions for the selected working directory', async (
       title: 'latest prompt',
       lastActivityAt: '2026-04-30T02:00:00.000Z',
       resumeTarget: 'claude-a',
+      repoPath: '/workspace/app',
       source: 'claude-history'
     }
+  ]);
+
+  const allSessions = await listAgentHistorySessions({ agent: 'claude', repoPath: '~', homeDir: temp });
+  assert.deepEqual(allSessions.map((session) => [session.id, session.repoPath]), [
+    ['claude-a', '/workspace/app']
   ]);
 });

@@ -4,11 +4,12 @@ import { join } from 'node:path';
 const maxSessions = 50;
 
 export async function listAgentHistorySessions({ agent, repoPath, homeDir = process.env.HOME || process.cwd() }) {
+  const normalizedRepoPath = normalizeRepoPath(repoPath, homeDir);
   if (agent === 'codex') {
-    return listCodexHistory({ homeDir, repoPath });
+    return listCodexHistory({ homeDir, repoPath: normalizedRepoPath });
   }
   if (agent === 'claude') {
-    return listClaudeHistory({ homeDir, repoPath });
+    return listClaudeHistory({ homeDir, repoPath: normalizedRepoPath });
   }
   return [];
 }
@@ -37,18 +38,49 @@ async function listCodexHistory({ homeDir, repoPath }) {
 
   const metadata = await listCodexSessionMetadata({ homeDir });
   if (!metadata.length || !repoPath) {
-    return sortAndTrim([...byId.values()]).map(stripInternalTimestamp);
+    if (!metadata.length) return sortAndTrim([...byId.values()]).map(stripInternalTimestamp);
+    return sortAndTrim(
+      metadata
+        .filter((item) => byId.has(item.id))
+        .map((item) => ({ ...byId.get(item.id), repoPath: item.cwd }))
+    ).map(stripInternalTimestamp);
   }
 
   const filtered = metadata
     .filter((item) => item.cwd === repoPath && byId.has(item.id))
-    .map((item) => byId.get(item.id));
+    .map((item) => ({ ...byId.get(item.id), repoPath: item.cwd }));
   return sortAndTrim(filtered).map(stripInternalTimestamp);
 }
 
 async function listClaudeHistory({ homeDir, repoPath }) {
-  if (!repoPath) return [];
-  const projectDir = join(homeDir, '.claude', 'projects', claudeProjectSlug(repoPath));
+  const projectDirs = repoPath
+    ? [join(homeDir, '.claude', 'projects', claudeProjectSlug(repoPath))]
+    : await listClaudeProjectDirs({ homeDir });
+  const sessions = [];
+
+  for (const projectDir of projectDirs) {
+    sessions.push(...await listClaudeProjectHistory({ projectDir, repoPath }));
+  }
+
+  return sortAndTrim(sessions).map(stripInternalTimestamp);
+}
+
+async function listClaudeProjectDirs({ homeDir }) {
+  const root = join(homeDir, '.claude', 'projects');
+  let entries;
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+
+  return entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => join(root, entry.name));
+}
+
+async function listClaudeProjectHistory({ projectDir, repoPath }) {
   let files;
   try {
     files = await readdir(projectDir);
@@ -61,7 +93,11 @@ async function listClaudeHistory({ homeDir, repoPath }) {
   for (const file of files) {
     if (!file.endsWith('.jsonl')) continue;
     const rows = await readJsonLines(join(projectDir, file));
-    const userRows = rows.filter((row) => row.type === 'user' && row.sessionId);
+    const userRows = rows.filter((row) => (
+      row.type === 'user' &&
+      row.sessionId &&
+      (!repoPath || row.cwd === repoPath)
+    ));
     if (!userRows.length) continue;
     const last = userRows.reduce((latest, row) => {
       return Date.parse(row.timestamp || '') >= Date.parse(latest.timestamp || '') ? row : latest;
@@ -74,11 +110,12 @@ async function listClaudeHistory({ homeDir, repoPath }) {
       timestamp,
       lastActivityAt: new Date(timestamp).toISOString(),
       resumeTarget: last.sessionId,
+      repoPath: last.cwd || repoPath || '',
       source: 'claude-history'
     });
   }
 
-  return sortAndTrim(sessions).map(stripInternalTimestamp);
+  return sessions;
 }
 
 async function readJsonLines(filePath) {
@@ -145,6 +182,13 @@ async function listJsonlFiles(dir) {
 
 function claudeProjectSlug(repoPath) {
   return repoPath.replace(/\/+/g, '-');
+}
+
+function normalizeRepoPath(repoPath, homeDir) {
+  const value = String(repoPath || '').trim();
+  if (!value || value === '~') return '';
+  if (value.startsWith('~/')) return `${homeDir}${value.slice(1)}`;
+  return value;
 }
 
 function extractClaudeContent(content) {

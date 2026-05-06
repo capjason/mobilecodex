@@ -492,6 +492,15 @@ function sessionDisplayName(session, titleMap) {
   return session.repoName || session.sessionId;
 }
 
+function isSpecificRepoPath(repoPath) {
+  const value = String(repoPath || '').trim();
+  return Boolean(value && value !== '~');
+}
+
+function repoFilterParam(repoPath) {
+  return isSpecificRepoPath(repoPath) ? repoPath : '';
+}
+
 function structuredEventKey(message) {
   const at = message?.at || '';
   if (!at) return '';
@@ -610,9 +619,15 @@ function App() {
   const [isBusy, setIsBusy] = useState(false);
 
   const currentRepo = launchDirectory.trim() || repoRoot;
+  const currentRepoIsSpecific = isSpecificRepoPath(currentRepo);
+  const currentHistoryRepo = repoFilterParam(currentRepo);
   const filteredSessions = useMemo(
-    () => dedupeSessionRows(sessions.filter((session) => session.agent === agent && session.repoPath === currentRepo && session.status === 'running')),
-    [agent, currentRepo, sessions]
+    () => dedupeSessionRows(sessions.filter((session) => (
+      session.agent === agent &&
+      session.status === 'running' &&
+      (!currentRepoIsSpecific || session.repoPath === currentRepo)
+    ))),
+    [agent, currentRepo, currentRepoIsSpecific, sessions]
   );
   const activeSession = useMemo(
     () => sessions.find((session) => session.sessionId === activeSessionId && session.status === 'running') || null,
@@ -631,13 +646,13 @@ function App() {
     try {
       const [managed, history] = await Promise.all([
         listSessions(),
-        listAgentSessions({ agent, repo: currentRepo })
+        listAgentSessions({ agent, repo: currentHistoryRepo })
       ]);
       const runningPairs = [...new Map(
         dedupeSessionRows(managed.filter((session) => session.status === 'running'))
           .map((session) => [`${session.agent}:${session.repoPath}`, { agent: session.agent, repo: session.repoPath }])
       ).values()];
-      const extraPairs = runningPairs.filter((item) => !(item.agent === agent && item.repo === currentRepo));
+      const extraPairs = runningPairs.filter((item) => !(item.agent === agent && item.repo === currentHistoryRepo));
       const extraHistoryRows = (await Promise.all(
         extraPairs.map((item) => (
           listAgentSessions({ agent: item.agent, repo: item.repo }).catch(() => [])
@@ -651,7 +666,7 @@ function App() {
         const stillVisible = visibleRunning.some((session) => session.sessionId === activeSessionId);
         if (!stillVisible) {
           const replacement =
-            visibleRunning.find((session) => session.agent === agent && session.repoPath === currentRepo) ||
+            visibleRunning.find((session) => session.agent === agent && (!currentRepoIsSpecific || session.repoPath === currentRepo)) ||
             visibleRunning[0];
           setActiveSessionId(replacement?.sessionId || '');
         }
@@ -661,7 +676,7 @@ function App() {
     } finally {
       setIsBusy(false);
     }
-  }, [activeSessionId, agent, currentRepo]);
+  }, [activeSessionId, agent, currentHistoryRepo, currentRepo, currentRepoIsSpecific]);
 
   async function loadRepos() {
     setIsBusy(true);
@@ -719,7 +734,7 @@ function App() {
   async function resumeHistorySession(historySession) {
     await launchSession({
       agent,
-      repo: currentRepo,
+      repo: historySession.repoPath || currentRepo,
       profile,
       launchMode: 'resume-id',
       resumeTarget: historySession.resumeTarget
@@ -843,6 +858,7 @@ function App() {
           <SessionPicker
             agent={agent}
             repoPath={currentRepo}
+            repoIsSpecific={currentRepoIsSpecific}
             sessions={filteredSessions}
             historySessions={historySessions}
             isBusy={isBusy}
@@ -861,6 +877,7 @@ function App() {
 function SessionPicker({
   agent,
   repoPath,
+  repoIsSpecific,
   sessions,
   historySessions,
   isBusy,
@@ -875,7 +892,7 @@ function SessionPicker({
       <div className="session-picker-header">
         <div>
           <h1>{agent === 'codex' ? 'Codex' : 'Claude Code'}</h1>
-          <p>{repoPath}</p>
+          <p>{repoIsSpecific ? repoPath : 'All working directories'}</p>
         </div>
         <button onClick={onRefresh} disabled={isBusy} title="Refresh sessions">Refresh</button>
       </div>
@@ -898,7 +915,7 @@ function SessionPicker({
           <button className="session-card" key={`${session.source}:${session.id}`} onClick={() => onResumeHistory(session)}>
             <strong>{session.title}</strong>
             <span>resume history · {formatDate(session.lastActivityAt)}</span>
-            <small>{session.resumeTarget}</small>
+            <small>{session.repoPath || session.resumeTarget}</small>
           </button>
         ))}
         {!sessions.length && !historySessions.length ? (
@@ -1130,7 +1147,7 @@ function AgentConsole({
     setHistoryLoading(true);
     setDrawerError('');
     try {
-      const rows = await listAgentSessions({ agent: nextAgent, repo });
+      const rows = await listAgentSessions({ agent: nextAgent, repo: repoFilterParam(repo) });
       setHistoryChoices(rows);
     } catch (error) {
       setDrawerError(error.message);
@@ -1158,7 +1175,7 @@ function AgentConsole({
   }
 
   async function resumeFromHistory(item) {
-    const repo = draftRepo.trim() || session.repoPath || '';
+    const repo = item.repoPath || draftRepo.trim() || session.repoPath || '';
     await onCreateSession({
       agent: draftAgent,
       repo,
