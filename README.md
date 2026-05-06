@@ -23,23 +23,17 @@ It is not a phone IDE. It is a mobile control surface for Codex / Claude Code se
 
 This recording shows a real MobileCodex session running against a tiny demo repository. The task is sent from the mobile chat UI, Codex updates `README.md`, runs `npm test`, and returns the result.
 
-<video src="docs/media/previews/mobile-demo.webm" controls width="390"></video>
+**Demo video:** [MP4](docs/media/previews/mobile-demo.mp4) · [WebM](docs/media/previews/mobile-demo.webm)
 
-Mobile chat view:
+<video src="docs/media/previews/mobile-demo.mp4" controls width="390"></video>
 
-<img src="docs/media/previews/mobile-01-chat.png" alt="MobileCodex chat view on iPhone" width="390">
+| Chat | Sessions |
+| --- | --- |
+| <img src="docs/media/previews/mobile-01-chat.png" alt="MobileCodex chat view on iPhone" width="280"> | <img src="docs/media/previews/mobile-02-drawer.png" alt="MobileCodex session drawer on iPhone" width="280"> |
 
-Session drawer:
-
-<img src="docs/media/previews/mobile-02-drawer.png" alt="MobileCodex session drawer on iPhone" width="390">
-
-New session options:
-
-<img src="docs/media/previews/mobile-03-new-session.png" alt="MobileCodex new session options on iPhone" width="390">
-
-Model and reasoning settings:
-
-<img src="docs/media/previews/mobile-04-settings.png" alt="MobileCodex settings drawer on iPhone" width="390">
+| New Session | Settings |
+| --- | --- |
+| <img src="docs/media/previews/mobile-03-new-session.png" alt="MobileCodex new session options on iPhone" width="280"> | <img src="docs/media/previews/mobile-04-settings.png" alt="MobileCodex settings drawer on iPhone" width="280"> |
 
 ## Basic Architecture
 
