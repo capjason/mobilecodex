@@ -123,7 +123,30 @@ Tips:
 - Keep the host machine awake while long Codex / Claude Code tasks are running.
 - If the app stops reconnecting after a network change, close it from the app switcher and open it again from the Home Screen.
 
-## 5. Manual Commands
+## 5. Update And Restart
+
+To update MobileCodex after it has already been installed, paste this prompt to Codex or Claude Code:
+
+```text
+Please update MobileCodex and restart the service.
+
+Instructions:
+1. Go to the existing MobileCodex repository checkout.
+2. Read AGENTS.md and follow it.
+3. Run scripts/update-and-restart.sh.
+4. If the service cannot be restarted automatically, tell me clearly that the restart is unfinished and print the exact commands I must run in a normal terminal.
+5. Verify with curl http://127.0.0.1:8787/api/health.
+6. Tell me when I can refresh the iPhone Home Screen app.
+```
+
+Manual command:
+
+```bash
+cd mobilecodex
+scripts/update-and-restart.sh
+```
+
+## 6. Manual Commands
 
 For humans or agents that prefer explicit commands:
 

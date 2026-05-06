@@ -127,6 +127,29 @@ If the systemd service step cannot be completed automatically:
 
 `scripts/doctor-host.sh` is a preflight checker for Node, npm, Codex CLI, Claude Code CLI, tmux, and Tailscale.
 
+## Update Flow
+
+When a user asks you to update MobileCodex, use:
+
+```bash
+scripts/update-and-restart.sh
+```
+
+The update script must:
+
+- require a clean git working tree
+- pull with `--ff-only`
+- run `npm install`
+- run `npm run web:build`
+- restart `mobilecodex.service`
+- verify `curl -sS http://127.0.0.1:8787/api/health`
+
+If the service restart cannot be completed automatically:
+
+- Tell the user the update is not complete.
+- Print the exact commands from `scripts/update-and-restart.sh` for them to run in a normal terminal.
+- Stop and wait for the user to confirm the service was restarted.
+
 Manual action boundary:
 
 - You may check whether `tailscale` is installed and logged in.
