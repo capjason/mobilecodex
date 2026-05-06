@@ -1,5 +1,5 @@
 import { readFile, readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { normalize, resolve, sep, join } from 'node:path';
 
 const maxSessions = 50;
 
@@ -47,7 +47,7 @@ async function listCodexHistory({ homeDir, repoPath }) {
   }
 
   const filtered = metadata
-    .filter((item) => item.cwd === repoPath && byId.has(item.id))
+    .filter((item) => pathsMatch(item.cwd, repoPath) && byId.has(item.id))
     .map((item) => ({ ...byId.get(item.id), repoPath: item.cwd }));
   return sortAndTrim(filtered).map(stripInternalTimestamp);
 }
@@ -96,7 +96,7 @@ async function listClaudeProjectHistory({ projectDir, repoPath }) {
     const userRows = rows.filter((row) => (
       row.type === 'user' &&
       row.sessionId &&
-      (!repoPath || row.cwd === repoPath)
+      (!repoPath || pathsMatch(row.cwd, repoPath))
     ));
     if (!userRows.length) continue;
     const last = userRows.reduce((latest, row) => {
@@ -181,14 +181,27 @@ async function listJsonlFiles(dir) {
 }
 
 function claudeProjectSlug(repoPath) {
-  return repoPath.replace(/\/+/g, '-');
+  return pathKey(repoPath).replace(/\/+/g, '-');
 }
 
 function normalizeRepoPath(repoPath, homeDir) {
   const value = String(repoPath || '').trim();
   if (!value || value === '~') return '';
-  if (value.startsWith('~/')) return `${homeDir}${value.slice(1)}`;
-  return value;
+  const expanded = value.startsWith('~/') ? `${homeDir}${value.slice(1)}` : value;
+  return pathKey(expanded);
+}
+
+function pathKey(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const normalized = normalize(resolve(raw));
+  return normalized.length > 1 && normalized.endsWith(sep)
+    ? normalized.slice(0, -1)
+    : normalized;
+}
+
+function pathsMatch(left, right) {
+  return pathKey(left) === pathKey(right);
 }
 
 function extractClaudeContent(content) {

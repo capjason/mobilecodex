@@ -501,6 +501,17 @@ function repoFilterParam(repoPath) {
   return isSpecificRepoPath(repoPath) ? repoPath : '';
 }
 
+function pathKeyForFilter(repoPath) {
+  return String(repoPath || '')
+    .trim()
+    .replace(/\/+/g, '/')
+    .replace(/\/+$/, '') || '/';
+}
+
+function pathsEqualForFilter(left, right) {
+  return pathKeyForFilter(left) === pathKeyForFilter(right);
+}
+
 function structuredEventKey(message) {
   const at = message?.at || '';
   if (!at) return '';
@@ -617,6 +628,11 @@ function App() {
   const [activeSessionId, setActiveSessionId] = useState(savedState.activeSessionId);
   const [error, setError] = useState('');
   const [isBusy, setIsBusy] = useState(false);
+  const activeSessionIdRef = React.useRef(activeSessionId);
+  const refreshSequenceRef = React.useRef(0);
+  const refreshInFlightRef = React.useRef(null);
+  const initialSessionsLoadedRef = React.useRef(false);
+  const pageWasHiddenRef = React.useRef(document.visibilityState === 'hidden');
 
   const currentRepo = launchDirectory.trim() || repoRoot;
   const currentRepoIsSpecific = isSpecificRepoPath(currentRepo);
@@ -625,7 +641,7 @@ function App() {
     () => dedupeSessionRows(sessions.filter((session) => (
       session.agent === agent &&
       session.status === 'running' &&
-      (!currentRepoIsSpecific || session.repoPath === currentRepo)
+      (!currentRepoIsSpecific || pathsEqualForFilter(session.repoPath, currentRepo))
     ))),
     [agent, currentRepo, currentRepoIsSpecific, sessions]
   );
@@ -640,43 +656,48 @@ function App() {
     [sessions]
   );
 
-  const refreshSessions = React.useCallback(async () => {
+  const refreshSessions = React.useCallback(async (options = {}) => {
+    const force = Boolean(options?.force);
+    const requestKey = `${agent}\n${currentHistoryRepo}`;
+    if (!force && refreshInFlightRef.current?.key === requestKey) {
+      return refreshInFlightRef.current.promise;
+    }
+    const sequence = refreshSequenceRef.current + 1;
+    refreshSequenceRef.current = sequence;
     setIsBusy(true);
     setError('');
-    try {
-      const [managed, history] = await Promise.all([
-        listSessions(),
-        listAgentSessions({ agent, repo: currentHistoryRepo })
-      ]);
-      const runningPairs = [...new Map(
-        dedupeSessionRows(managed.filter((session) => session.status === 'running'))
-          .map((session) => [`${session.agent}:${session.repoPath}`, { agent: session.agent, repo: session.repoPath }])
-      ).values()];
-      const extraPairs = runningPairs.filter((item) => !(item.agent === agent && item.repo === currentHistoryRepo));
-      const extraHistoryRows = (await Promise.all(
-        extraPairs.map((item) => (
-          listAgentSessions({ agent: item.agent, repo: item.repo }).catch(() => [])
-        ))
-      )).flat();
-      setSessionTitles((current) => mergeHistoryTitleMap(current, [...history, ...extraHistoryRows]));
-      setSessions(managed);
-      setHistorySessions(history);
-      if (activeSessionId) {
-        const visibleRunning = dedupeSessionRows(managed.filter((session) => session.status === 'running'));
-        const stillVisible = visibleRunning.some((session) => session.sessionId === activeSessionId);
-        if (!stillVisible) {
-          const replacement =
-            visibleRunning.find((session) => session.agent === agent && (!currentRepoIsSpecific || session.repoPath === currentRepo)) ||
-            visibleRunning[0];
-          setActiveSessionId(replacement?.sessionId || '');
+    let promise;
+    promise = (async () => {
+      try {
+        const [managed, history] = await Promise.all([
+          listSessions(),
+          listAgentSessions({ agent, repo: currentHistoryRepo })
+        ]);
+        if (refreshSequenceRef.current !== sequence) return;
+        setSessionTitles((current) => mergeHistoryTitleMap(current, history));
+        setSessions(managed);
+        setHistorySessions(history);
+        if (activeSessionIdRef.current) {
+          const visibleRunning = dedupeSessionRows(managed.filter((session) => session.status === 'running'));
+          const stillVisible = visibleRunning.some((session) => session.sessionId === activeSessionIdRef.current);
+          if (!stillVisible) {
+            const replacement =
+              visibleRunning.find((session) => session.agent === agent && (!currentRepoIsSpecific || pathsEqualForFilter(session.repoPath, currentRepo))) ||
+              visibleRunning[0];
+            setActiveSessionId(replacement?.sessionId || '');
+          }
         }
+      } catch (err) {
+        if (refreshSequenceRef.current !== sequence) return;
+        setError(err.message);
+      } finally {
+        if (refreshSequenceRef.current === sequence) setIsBusy(false);
+        if (refreshInFlightRef.current?.promise === promise) refreshInFlightRef.current = null;
       }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsBusy(false);
-    }
-  }, [activeSessionId, agent, currentHistoryRepo, currentRepo, currentRepoIsSpecific]);
+    })();
+    refreshInFlightRef.current = { key: requestKey, promise };
+    return promise;
+  }, [agent, currentHistoryRepo, currentRepo, currentRepoIsSpecific]);
 
   async function loadRepos() {
     setIsBusy(true);
@@ -712,7 +733,7 @@ function App() {
       setLaunchDirectory(repo);
       setSessions((current) => [session, ...current.filter((item) => item.sessionId !== session.sessionId)]);
       setActiveSessionId(session.sessionId);
-      await refreshSessions();
+      await refreshSessions({ force: true });
       return session;
     } catch (err) {
       setError(err.message);
@@ -748,7 +769,7 @@ function App() {
     try {
       await stopSession(activeSessionId);
       setActiveSessionId('');
-      await refreshSessions();
+      await refreshSessions({ force: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -771,29 +792,53 @@ function App() {
   }, []);
 
   useEffect(() => {
-    refreshSessions();
+    let cancelled = false;
+    refreshSessions().finally(() => {
+      if (!cancelled) initialSessionsLoadedRef.current = true;
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [refreshSessions]);
+
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+  }, [activeSessionId]);
 
   useEffect(() => {
     saveState({ agent, profile, model, reasoningEffort, launchDirectory, activeSessionId });
   }, [agent, profile, model, reasoningEffort, launchDirectory, activeSessionId]);
 
   useEffect(() => {
-    function refreshOnResume() {
-      if (document.visibilityState === 'hidden') return;
+    function refreshAfterResume() {
+      if (!initialSessionsLoadedRef.current) return;
       refreshSessions();
     }
 
-    window.addEventListener('pageshow', refreshOnResume);
-    document.addEventListener('visibilitychange', refreshOnResume);
-    window.addEventListener('focus', refreshOnResume);
-    window.addEventListener('online', refreshOnResume);
+    function refreshOnVisibilityChange() {
+      if (document.visibilityState === 'hidden') {
+        pageWasHiddenRef.current = true;
+        return;
+      }
+      if (!pageWasHiddenRef.current) return;
+      pageWasHiddenRef.current = false;
+      refreshAfterResume();
+    }
+
+    function refreshOnPageShow(event) {
+      if (!event.persisted) return;
+      pageWasHiddenRef.current = false;
+      refreshAfterResume();
+    }
+
+    window.addEventListener('pageshow', refreshOnPageShow);
+    document.addEventListener('visibilitychange', refreshOnVisibilityChange);
+    window.addEventListener('online', refreshAfterResume);
 
     return () => {
-      window.removeEventListener('pageshow', refreshOnResume);
-      document.removeEventListener('visibilitychange', refreshOnResume);
-      window.removeEventListener('focus', refreshOnResume);
-      window.removeEventListener('online', refreshOnResume);
+      window.removeEventListener('pageshow', refreshOnPageShow);
+      document.removeEventListener('visibilitychange', refreshOnVisibilityChange);
+      window.removeEventListener('online', refreshAfterResume);
     };
   }, [refreshSessions]);
 
@@ -894,7 +939,7 @@ function SessionPicker({
           <h1>{agent === 'codex' ? 'Codex' : 'Claude Code'}</h1>
           <p>{repoIsSpecific ? repoPath : 'All working directories'}</p>
         </div>
-        <button onClick={onRefresh} disabled={isBusy} title="Refresh sessions">Refresh</button>
+        <button onClick={() => onRefresh({ force: true })} disabled={isBusy} title="Refresh sessions">Refresh</button>
       </div>
 
       <div className="session-actions-row">

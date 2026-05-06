@@ -34,7 +34,7 @@ test('lists codex history sessions grouped by session id', async (t) => {
   );
 
   assert.equal(home(), '');
-  const sessions = await listAgentHistorySessions({ agent: 'codex', repoPath: '/workspace/app', homeDir: temp });
+  const sessions = await listAgentHistorySessions({ agent: 'codex', repoPath: '/workspace/app/', homeDir: temp });
   assert.deepEqual(sessions, [
     {
       id: 'codex-a',
@@ -67,7 +67,7 @@ test('lists claude project sessions for the selected working directory', async (
     'utf8'
   );
 
-  const sessions = await listAgentHistorySessions({ agent: 'claude', repoPath: '/workspace/app', homeDir: temp });
+  const sessions = await listAgentHistorySessions({ agent: 'claude', repoPath: '/workspace/app/', homeDir: temp });
   assert.deepEqual(sessions, [
     {
       id: 'claude-a',

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 
 const mainSource = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
 const stylesSource = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
+const indexSource = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
 
 test('mobile shell uses a single top control bar and no bottom tabs or host status strip', () => {
   assert.match(mainSource, /className="control-bar"/);
@@ -46,6 +47,9 @@ test('main surface switches between session picker and agent chat', () => {
   assert.match(mainSource, /settings-icon/);
   assert.match(mainSource, /GPT-5\.5/);
   assert.match(mainSource, /historySessions/);
+  assert.match(mainSource, /pathKeyForFilter/);
+  assert.match(mainSource, /pathsEqualForFilter/);
+  assert.doesNotMatch(mainSource, /session\.repoPath === currentRepo/);
   assert.match(mainSource, /onClose/);
   assert.match(mainSource, /className="close-icon"/);
   assert.match(mainSource, /New Session/);
@@ -64,6 +68,14 @@ test('browser state persists active session and reconnects after iOS page resume
   assert.match(mainSource, /saveState/);
   assert.match(mainSource, /pageshow/);
   assert.match(mainSource, /visibilitychange/);
+  assert.match(mainSource, /refreshInFlightRef/);
+  assert.match(mainSource, /requestKey/);
+  assert.match(mainSource, /pageWasHiddenRef/);
+  assert.match(mainSource, /event\.persisted/);
+  assert.doesNotMatch(mainSource, /lastRefreshRequestRef/);
+  assert.doesNotMatch(mainSource, /sessionRefreshDedupeMs/);
+  assert.match(indexSource, /hadController/);
+  assert.match(indexSource, /if \(!hadController\) return/);
   assert.match(mainSource, /reconnectTerminal/);
   assert.match(mainSource, /scheduleReconnect/);
   assert.match(mainSource, /reconnectTerminal\(true, false\)/);

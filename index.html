@@ -20,7 +20,9 @@
       const mobileCodexBuild = "2026-05-03-tool-card-id-v8";
       if ("serviceWorker" in navigator) {
         let refreshing = false;
+        const hadController = Boolean(navigator.serviceWorker.controller);
         navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (!hadController) return;
           if (refreshing) return;
           refreshing = true;
           window.location.reload();
