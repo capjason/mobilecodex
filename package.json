@@ -1,0 +1,22 @@
+{
+  "name": "mobilecodex",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npm --prefix helper test && node --test server/test/*.test.js web/test/*.test.js",
+    "server": "node server/src/index.js",
+    "web:dev": "vite --host 0.0.0.0",
+    "web:build": "vite build",
+    "dev": "node server/src/index.js"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
+    "@xterm/xterm": "^6.0.0",
+    "node-pty": "^1.1.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "vite": "^8.0.10",
+    "ws": "^8.20.0"
+  }
+}

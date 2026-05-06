@@ -1,0 +1,147 @@
+import { readFileSync } from 'node:fs';
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+
+const mainSource = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
+const stylesSource = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
+
+test('mobile shell uses a single top control bar and no bottom tabs or host status strip', () => {
+  assert.match(mainSource, /className="control-bar"/);
+  assert.match(mainSource, /className=\{activeSession \? 'app-shell session-mode' : 'app-shell'\}/);
+  assert.match(mainSource, /!activeSession \? \(/);
+  assert.match(mainSource, /CLI/);
+  assert.match(mainSource, /Launch Directory/);
+  assert.match(mainSource, /repo-suggestions/);
+  assert.match(mainSource, /VITE_DEFAULT_WORKDIR/);
+  assert.match(mainSource, /~\/workspace\/project/);
+  assert.match(mainSource, /Permission/);
+  assert.doesNotMatch(mainSource, /mobile-tabbar/);
+  assert.doesNotMatch(mainSource, /host-strip/);
+  assert.doesNotMatch(mainSource, /Capability/);
+  assert.doesNotMatch(stylesSource, /\.mobile-tabbar/);
+  assert.doesNotMatch(stylesSource, /\.host-strip/);
+  assert.match(stylesSource, /\.app-shell\.session-mode/);
+  assert.match(stylesSource, /\.session-mode \.chat-toolbar/);
+});
+
+test('main surface switches between session picker and agent chat', () => {
+  assert.match(mainSource, /SessionPicker/);
+  assert.match(mainSource, /AgentConsole/);
+  assert.match(mainSource, /session-drawer-handle/);
+  assert.match(mainSource, /session-drawer/);
+  assert.match(mainSource, /onTouchStart=\{onTouchStart\}/);
+  assert.match(mainSource, /onTouchMove=\{onTouchMove\}/);
+  assert.match(mainSource, /availableSessions/);
+  assert.match(mainSource, /dedupeSessionRows/);
+  assert.match(mainSource, /sessionIdentityKey/);
+  assert.match(mainSource, /visibleHistoryChoices/);
+  assert.match(mainSource, /onCanonicalSession/);
+  assert.match(mainSource, /onSelectSession/);
+  assert.match(mainSource, /onNewSession/);
+  assert.match(mainSource, /listAgentSessions/);
+  assert.match(mainSource, /Resume Previous/);
+  assert.match(mainSource, /session-drawer-form/);
+  assert.match(mainSource, /session-drawer-new/);
+  assert.match(mainSource, /settings-drawer/);
+  assert.match(mainSource, /settings-icon/);
+  assert.match(mainSource, /GPT-5\.5/);
+  assert.match(mainSource, /historySessions/);
+  assert.match(mainSource, /onClose/);
+  assert.match(mainSource, /className="close-icon"/);
+  assert.match(mainSource, /New Session/);
+  assert.match(mainSource, /sendSessionInput/);
+  assert.match(mainSource, /keepalive: true/);
+  assert.match(mainSource, /\['up', 'down', 'enter'\]/);
+  assert.doesNotMatch(mainSource, /quickPrompts/);
+  assert.doesNotMatch(mainSource, /Summarize/);
+  assert.doesNotMatch(mainSource, /'ctrl-c'/);
+});
+
+test('browser state persists active session and reconnects after iOS page resume', () => {
+  assert.match(mainSource, /mobilecodex.state.v1/);
+  assert.match(mainSource, /model: 'gpt-5\.5'/);
+  assert.match(mainSource, /loadSavedState/);
+  assert.match(mainSource, /saveState/);
+  assert.match(mainSource, /pageshow/);
+  assert.match(mainSource, /visibilitychange/);
+  assert.match(mainSource, /reconnectTerminal/);
+  assert.match(mainSource, /scheduleReconnect/);
+  assert.match(mainSource, /reconnectTerminal\(true, false\)/);
+  assert.doesNotMatch(mainSource, /connection closed/);
+});
+
+test('agent view uses a single scrollable transcript', () => {
+  assert.match(mainSource, /transcript/);
+  assert.doesNotMatch(mainSource, /Raw Terminal/);
+  assert.doesNotMatch(mainSource, /setViewMode/);
+  assert.match(mainSource, /status-strip/);
+  assert.match(mainSource, /setSessionStatus\(message\.status\)/);
+  assert.doesNotMatch(mainSource, /appendTranscript\('system', `Status:/);
+  assert.match(mainSource, /appendTranscript/);
+  assert.match(stylesSource, /\.transcript/);
+  assert.match(stylesSource, /\.status-strip/);
+  assert.match(stylesSource, /overflow-y: auto/);
+});
+
+test('agent messages render as rich chat content rather than plain pre blocks', () => {
+  assert.match(mainSource, /RichMessageContent/);
+  assert.match(mainSource, /parseMarkdownBlocks/);
+  assert.match(mainSource, /CodeBlock/);
+  assert.match(mainSource, /copyMessage/);
+  assert.match(mainSource, /Jump to latest/);
+  assert.match(mainSource, /handleTranscriptScroll/);
+  assert.equal(mainSource.includes('<pre>{item.content}</pre>'), false);
+  assert.match(stylesSource, /\.message-actions/);
+  assert.match(stylesSource, /\.code-block-header/);
+  assert.match(stylesSource, /\.composer-shell/);
+});
+
+test('structured chat does not wipe replayed messages on connect', () => {
+  assert.match(mainSource, /structuredChatWebSocketUrl/);
+  assert.match(mainSource, /message\.type === 'assistant_delta'/);
+  assert.match(mainSource, /message\.type === 'assistant_message'/);
+  assert.match(mainSource, /message\.sessionId && message\.sessionId !== sessionId/);
+  assert.match(mainSource, /flushAgentOutput\(\);/);
+  assert.doesNotMatch(mainSource, /message\.runtime === 'structured'\) setTranscript\(\[\]\)/);
+});
+
+test('tool call events are rendered as first-class transcript messages', () => {
+  assert.match(mainSource, /formatToolEventMessage/);
+  assert.match(mainSource, /formatToolOutputMessage/);
+  assert.match(mainSource, /renderStructuredToolPayload/);
+  assert.match(mainSource, /toolSummaryLine/);
+  assert.match(mainSource, /cleanToolOutputText/);
+  assert.match(mainSource, /mergeToolTranscriptContent/);
+  assert.match(mainSource, /mergeToolEntries/);
+  assert.match(mainSource, /toolEntryFromMessage/);
+  assert.match(mainSource, /appendToolTranscript/);
+  assert.match(mainSource, /toolCallIdFromMessage/);
+  assert.match(mainSource, /toolCallIdFromItem/);
+  assert.match(mainSource, /item\?\.id/);
+  assert.match(mainSource, /extractToolCallId/);
+  assert.match(mainSource, /Running tool/);
+  assert.doesNotMatch(mainSource, /Tool Output/);
+  assert.doesNotMatch(mainSource, /Started/);
+  assert.doesNotMatch(mainSource, /Completed/);
+  assert.match(mainSource, /<details>/);
+  assert.match(mainSource, /Chunk ID:/);
+  assert.match(mainSource, /Process exited with code/);
+  assert.match(mainSource, /messageRoleLabel/);
+  assert.match(mainSource, /role === 'tool'/);
+  assert.match(mainSource, /message\.type === 'tool_started'/);
+  assert.match(mainSource, /message\.type === 'tool_completed'/);
+  assert.match(mainSource, /message\.type === 'tool_output_delta'/);
+  assert.match(stylesSource, /\.tool-body details/);
+  assert.match(stylesSource, /\.message\.tool\.running/);
+  assert.match(stylesSource, /\.message\.tool\.completed/);
+  assert.match(stylesSource, /\.close-icon/);
+  assert.match(stylesSource, /\.session-drawer-handle/);
+  assert.match(stylesSource, /grid-template-rows: auto auto minmax\(0, 1fr\)/);
+  assert.match(stylesSource, /\.session-drawer-form/);
+  assert.match(stylesSource, /\.session-drawer-new/);
+  assert.match(stylesSource, /\.settings-drawer/);
+  assert.match(stylesSource, /\.settings-icon/);
+  assert.match(stylesSource, /\.session-drawer-subhead/);
+  assert.match(stylesSource, /\.session-drawer-item/);
+  assert.match(stylesSource, /\.message\.tool/);
+});
