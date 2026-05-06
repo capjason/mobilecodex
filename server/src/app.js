@@ -11,10 +11,18 @@ import { createSession, listSessions, restartSession, sendSessionInput, stopSess
 import { CodexStructuredManager } from './codex-structured.js';
 import { attachTerminalWebSocket } from './terminal.js';
 import { attachStructuredChatWebSocket } from './structured-chat.js';
+import { isRequestAllowed } from './access-control.js';
 
 export function createApp({ services = defaultServices(), terminalService, staticDir = join(process.cwd(), 'dist') } = {}) {
   const server = createServer(async (req, res) => {
     try {
+      if (!isRequestAllowed(req)) {
+        writeJson(res, 403, {
+          error: 'forbidden',
+          message: 'MobileCodex only accepts loopback or Tailscale client IPs.'
+        });
+        return;
+      }
       await route(req, res, services, staticDir);
     } catch (error) {
       writeJson(res, 500, {

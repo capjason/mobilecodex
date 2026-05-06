@@ -1,6 +1,8 @@
 import { WebSocketServer } from 'ws';
 import * as pty from 'node-pty';
 
+import { isRequestAllowed, rejectUpgrade } from './access-control.js';
+
 export function attachTerminalWebSocket(server, terminalService = defaultTerminalService()) {
   const wss = new WebSocketServer({ noServer: true });
   server.on('close', () => {
@@ -15,6 +17,11 @@ export function attachTerminalWebSocket(server, terminalService = defaultTermina
     const match = url.pathname.match(/^\/ws\/sessions\/([^/]+)\/terminal$/);
 
     if (!match) {
+      return;
+    }
+
+    if (!isRequestAllowed(req)) {
+      rejectUpgrade(socket);
       return;
     }
 

@@ -1,5 +1,7 @@
 import { WebSocketServer } from 'ws';
 
+import { isRequestAllowed, rejectUpgrade } from './access-control.js';
+
 export function attachStructuredChatWebSocket(server, manager) {
   const wss = new WebSocketServer({ noServer: true });
   server.on('close', () => {
@@ -11,6 +13,11 @@ export function attachStructuredChatWebSocket(server, manager) {
     const url = new URL(req.url, 'http://localhost');
     const match = url.pathname.match(/^\/ws\/sessions\/([^/]+)\/chat$/);
     if (!match) return;
+
+    if (!isRequestAllowed(req)) {
+      rejectUpgrade(socket);
+      return;
+    }
 
     const sessionId = decodeURIComponent(match[1]);
     const after = url.searchParams.get('after') || '';

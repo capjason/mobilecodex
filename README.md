@@ -2,6 +2,47 @@
 
 MobileCodex lets you control Codex CLI and Claude Code CLI from your phone.
 
+## Why This Exists
+
+The way we write code has changed. More developers now use coding agents such as Codex CLI and Claude Code CLI for real implementation work.
+
+That changes what we need from a development machine. We still need a host machine to run the agent, hold the codebase, execute commands, and keep long-running work alive. But we no longer need to sit in front of that host machine just to interact with the agent.
+
+MobileCodex exists for that workflow:
+
+```text
+your host machine runs the agent and code 24/7
+your phone sends instructions whenever you want
+the agent keeps working even when you leave the page
+you come back later and resume the same session
+```
+
+It is not a phone IDE. It is a mobile control surface for Codex / Claude Code sessions running on your own machine.
+
+## Preview
+
+This recording shows a real MobileCodex session running against a tiny demo repository. The task is sent from the mobile chat UI, Codex updates `README.md`, runs `npm test`, and returns the result.
+
+<video src="docs/media/previews/mobile-demo.webm" controls width="390"></video>
+
+Mobile chat view:
+
+<img src="docs/media/previews/mobile-01-chat.png" alt="MobileCodex chat view on iPhone" width="390">
+
+Session drawer:
+
+<img src="docs/media/previews/mobile-02-drawer.png" alt="MobileCodex session drawer on iPhone" width="390">
+
+New session options:
+
+<img src="docs/media/previews/mobile-03-new-session.png" alt="MobileCodex new session options on iPhone" width="390">
+
+Model and reasoning settings:
+
+<img src="docs/media/previews/mobile-04-settings.png" alt="MobileCodex settings drawer on iPhone" width="390">
+
+## Basic Architecture
+
 The simplest setup is intranet-only:
 
 ```text
@@ -13,6 +54,31 @@ phone browser
 ```
 
 You do not need a public domain, SSH from the phone, or HTTPS for the basic setup.
+
+## Security Model
+
+MobileCodex is designed to be reachable from your private Tailnet, not from the public internet.
+
+The host server should bind to `0.0.0.0` so your phone can reach it over Tailscale, but the server only accepts requests from loopback and Tailscale IP ranges by default:
+
+```text
+127.0.0.0/8
+::1/128
+100.64.0.0/10
+fd7a:115c:a1e0::/48
+```
+
+Requests from other IP ranges return `403 Forbidden`. This applies to both HTTP APIs and WebSocket session streams.
+
+You can override the allowlist with:
+
+```bash
+MOBILECODEX_ALLOWED_CIDRS=127.0.0.0/8,::1/128,100.64.0.0/10,fd7a:115c:a1e0::/48
+```
+
+Do not set this to a public range unless you fully understand the risk. MobileCodex can start coding agents, send prompts, and affect files in allowed working directories.
+
+If you put MobileCodex behind HTTPS or a reverse proxy, the reverse proxy must also enforce the same Tailnet restriction. The included Caddy setup blocks non-Tailscale client IPs before proxying to `127.0.0.1:8787`.
 
 ## 1. One Manual Step
 
@@ -52,6 +118,7 @@ Goal:
 - Install and run MobileCodex so I can open it from my phone over Tailscale.
 - Use intranet HTTP by default. Do not require a domain, SSH from the phone, or HTTPS.
 - Use HOST=0.0.0.0 and PORT=8787.
+- Keep the default Tailnet-only allowlist. The server must allow loopback plus Tailscale IP ranges only, and return 403 for other client IP ranges.
 - Use ~/workspace as the default working directory unless I already have a better local workspace path.
 - Automatically install missing host dependencies where possible, including Node.js, npm, git, curl, tmux, Tailscale, Codex CLI, and Claude Code CLI.
 - Install MobileCodex as a user auto-start service. Use systemd on Linux and LaunchAgent/launchd on macOS. This is required so the server keeps running after Codex/Claude Code exits.
@@ -90,6 +157,7 @@ mobilecodex.example.com
 Requirements:
 - Keep the normal MobileCodex server on 127.0.0.1:8787.
 - Use Caddy if there is no existing reverse proxy.
+- Restrict HTTPS access to Tailscale client IP ranges only. Non-Tailscale IPs must receive 403.
 - If an existing reverse proxy or Caddyfile is present, do not overwrite unrelated sites. Stop and show me the config block to merge.
 - Do not wait for an interactive sudo password inside Codex/Claude Code. If privileged Caddy commands are needed and non-interactive sudo is unavailable, print the exact commands I must run in a normal terminal, stop, and wait for me.
 - If this is a clean host and the existing Caddyfile is only the default placeholder, ask me before rerunning with OVERWRITE=1.

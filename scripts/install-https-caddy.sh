@@ -44,6 +44,10 @@ ${MARKER_BEGIN}
 
 ${DOMAIN} {
   encode zstd gzip
+  @notTailnet {
+    not remote_ip 100.64.0.0/10 fd7a:115c:a1e0::/48
+  }
+  respond @notTailnet "Forbidden" 403
   reverse_proxy 127.0.0.1:${PORT_VALUE}
 }
 ${MARKER_END}
@@ -53,6 +57,10 @@ EOF
 ${MARKER_BEGIN}
 ${DOMAIN} {
   encode zstd gzip
+  @notTailnet {
+    not remote_ip 100.64.0.0/10 fd7a:115c:a1e0::/48
+  }
+  respond @notTailnet "Forbidden" 403
   reverse_proxy 127.0.0.1:${PORT_VALUE}
 }
 ${MARKER_END}
