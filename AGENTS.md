@@ -110,18 +110,18 @@ When a user asks you to install MobileCodex, use the repository scripts instead 
 
 ```bash
 scripts/bootstrap-host.sh
-scripts/install-systemd-user.sh
+scripts/install-service.sh
 curl -sS http://127.0.0.1:8787/api/health
 ```
 
 `scripts/bootstrap-host.sh` is the default one-shot installer. It checks host tools, creates `.env` if missing, installs npm dependencies, and builds the web app.
 
-`scripts/install-systemd-user.sh` installs `mobilecodex.service` as a systemd user service. Treat this as required for a complete install: the user should be able to close Codex/Claude Code and still open MobileCodex from the phone.
+`scripts/install-service.sh` installs the user auto-start service. It delegates to systemd on Linux and launchd LaunchAgent on macOS. Treat this as required for a complete install: the user should be able to close Codex/Claude Code and still open MobileCodex from the phone.
 
-If the systemd service step cannot be completed automatically:
+If the service step cannot be completed automatically:
 
 - Tell the user the install is not complete.
-- Print exactly one command for them to run in a normal terminal: `cd <repo> && scripts/install-systemd-user.sh`.
+- Print exactly one command for them to run in a normal terminal: `cd <repo> && scripts/install-service.sh`.
 - Stop and wait for the user to confirm the service was installed.
 - Continue only after `curl -sS http://127.0.0.1:8787/api/health` succeeds.
 
@@ -141,13 +141,13 @@ The update script must:
 - pull with `--ff-only`
 - run `npm install`
 - run `npm run web:build`
-- restart `mobilecodex.service`
+- restart the configured user service (`mobilecodex.service` on Linux, `com.mobilecodex.server` on macOS)
 - verify `curl -sS http://127.0.0.1:8787/api/health`
 
 If the service restart cannot be completed automatically:
 
 - Tell the user the update is not complete.
-- Print the exact commands from `scripts/update-and-restart.sh` for them to run in a normal terminal.
+- Print exactly one command for them to run in a normal terminal: `cd <repo> && scripts/update-and-restart.sh`.
 - Stop and wait for the user to confirm the service was restarted.
 
 Manual action boundary:

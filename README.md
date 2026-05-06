@@ -54,14 +54,14 @@ Goal:
 - Use HOST=0.0.0.0 and PORT=8787.
 - Use ~/workspace as the default working directory unless I already have a better local workspace path.
 - Automatically install missing host dependencies where possible, including Node.js, npm, git, curl, tmux, Tailscale, Codex CLI, and Claude Code CLI.
-- Install MobileCodex as a systemd user service. This is required so the server keeps running after Codex/Claude Code exits.
+- Install MobileCodex as a user auto-start service. Use systemd on Linux and LaunchAgent/launchd on macOS. This is required so the server keeps running after Codex/Claude Code exits.
 - Do not wait for an interactive sudo password inside Codex/Claude Code. If privileged commands are needed and non-interactive sudo is unavailable, print the exact command I must run in a normal terminal, stop, and wait for me.
 
 Instructions:
 1. Clone or update the repository.
 2. Read AGENTS.md and follow it.
 3. Run scripts/bootstrap-host.sh.
-4. Run scripts/install-systemd-user.sh. If the service cannot be installed automatically, tell me clearly that this step is unfinished and print exactly one command I must run in a normal terminal: `cd <repo> && scripts/install-systemd-user.sh`.
+4. Run scripts/install-service.sh. If the service cannot be installed automatically, tell me clearly that this step is unfinished and print exactly one command I must run in a normal terminal: `cd <repo> && scripts/install-service.sh`.
 5. Run curl http://127.0.0.1:8787/api/health.
 6. If Tailscale is not installed or not logged in, stop and ask me to complete that manual step. Do not try to handle browser login or account registration yourself.
 7. Do not read, print, or commit real .env files, tokens, certificates, private keys, or shell history.
@@ -134,7 +134,7 @@ Instructions:
 1. Go to the existing MobileCodex repository checkout.
 2. Read AGENTS.md and follow it.
 3. Run scripts/update-and-restart.sh.
-4. If the service cannot be restarted automatically, tell me clearly that the restart is unfinished and print the exact commands I must run in a normal terminal.
+4. If the service cannot be restarted automatically, tell me clearly that the restart is unfinished and print exactly one command I must run in a normal terminal: `cd <repo> && scripts/update-and-restart.sh`.
 5. Verify with curl http://127.0.0.1:8787/api/health.
 6. Tell me when I can refresh the iPhone Home Screen app.
 ```
@@ -154,7 +154,7 @@ For humans or agents that prefer explicit commands:
 git clone https://github.com/capjason/mobilecodex.git
 cd mobilecodex
 scripts/bootstrap-host.sh
-scripts/install-systemd-user.sh
+scripts/install-service.sh
 curl http://127.0.0.1:8787/api/health
 ```
 

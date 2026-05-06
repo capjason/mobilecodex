@@ -2,7 +2,15 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SERVICE_NAME="${SERVICE_NAME:-mobilecodex.service}"
+OS_NAME="$(uname -s)"
+SERVICE_NAME="${SERVICE_NAME:-}"
+if [[ -z "${SERVICE_NAME}" ]]; then
+  if [[ "${OS_NAME}" == "Darwin" ]]; then
+    SERVICE_NAME="com.mobilecodex.server"
+  else
+    SERVICE_NAME="mobilecodex.service"
+  fi
+fi
 SKIP_PULL="${SKIP_PULL:-0}"
 RUN_TESTS="${RUN_TESTS:-0}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:${PORT:-8787}/api/health}"
@@ -11,13 +19,9 @@ manual_restart_commands() {
   cat <<EOF >&2
 Update completed, but the service was not restarted automatically.
 
-Run these commands in a normal terminal on the host:
+Run this one command in a normal terminal on the host:
 
-  cd ${ROOT_DIR}
-  systemctl --user daemon-reload
-  systemctl --user restart ${SERVICE_NAME}
-  systemctl --user status ${SERVICE_NAME} --no-pager -l
-  curl ${HEALTH_URL}
+  cd ${ROOT_DIR} && scripts/update-and-restart.sh
 
 Then open MobileCodex from your phone again.
 EOF
@@ -49,29 +53,47 @@ fi
 
 npm run web:build
 
-if ! command -v systemctl >/dev/null 2>&1; then
-  manual_restart_commands
-  exit 80
-fi
+if [[ "${OS_NAME}" == "Darwin" ]]; then
+  if ! command -v launchctl >/dev/null 2>&1; then
+    manual_restart_commands
+    exit 80
+  fi
+  if ! launchctl print "gui/$(id -u)/${SERVICE_NAME}" >/dev/null 2>&1; then
+    echo "${SERVICE_NAME} is not installed." >&2
+    echo "Run scripts/install-service.sh first." >&2
+    manual_restart_commands
+    exit 80
+  fi
+  if ! launchctl kickstart -k "gui/$(id -u)/${SERVICE_NAME}"; then
+    manual_restart_commands
+    exit 80
+  fi
+  sleep 1
+else
+  if ! command -v systemctl >/dev/null 2>&1; then
+    manual_restart_commands
+    exit 80
+  fi
 
-if ! systemctl --user list-unit-files "${SERVICE_NAME}" >/dev/null 2>&1; then
-  echo "${SERVICE_NAME} is not installed." >&2
-  echo "Run scripts/install-systemd-user.sh first." >&2
-  manual_restart_commands
-  exit 80
-fi
+  if ! systemctl --user list-unit-files "${SERVICE_NAME}" >/dev/null 2>&1; then
+    echo "${SERVICE_NAME} is not installed." >&2
+    echo "Run scripts/install-service.sh first." >&2
+    manual_restart_commands
+    exit 80
+  fi
 
-if ! systemctl --user restart "${SERVICE_NAME}"; then
-  manual_restart_commands
-  exit 80
-fi
+  if ! systemctl --user restart "${SERVICE_NAME}"; then
+    manual_restart_commands
+    exit 80
+  fi
 
-sleep 1
+  sleep 1
 
-if ! systemctl --user is-active --quiet "${SERVICE_NAME}"; then
-  systemctl --user status "${SERVICE_NAME}" --no-pager -l || true
-  manual_restart_commands
-  exit 80
+  if ! systemctl --user is-active --quiet "${SERVICE_NAME}"; then
+    systemctl --user status "${SERVICE_NAME}" --no-pager -l || true
+    manual_restart_commands
+    exit 80
+  fi
 fi
 
 curl -sS "${HEALTH_URL}"

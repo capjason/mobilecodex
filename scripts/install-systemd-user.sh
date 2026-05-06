@@ -12,7 +12,7 @@ Systemd user service was not installed automatically.
 
 Run this one command in a normal terminal on the host:
 
-  cd ${ROOT_DIR} && scripts/install-systemd-user.sh
+  cd ${ROOT_DIR} && scripts/install-service.sh
 
 Then return to Codex/Claude Code and say the service step is complete.
 EOF
