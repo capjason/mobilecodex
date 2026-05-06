@@ -55,7 +55,9 @@ test('main surface switches between session picker and agent chat', () => {
   assert.match(mainSource, /New Session/);
   assert.match(mainSource, /sendSessionInput/);
   assert.match(mainSource, /keepalive: true/);
-  assert.match(mainSource, /\['up', 'down', 'enter'\]/);
+  assert.doesNotMatch(mainSource, /special-keys/);
+  assert.doesNotMatch(stylesSource, /\.special-keys/);
+  assert.doesNotMatch(mainSource, /\['up', 'down', 'enter'\]/);
   assert.doesNotMatch(mainSource, /quickPrompts/);
   assert.doesNotMatch(mainSource, /Summarize/);
   assert.doesNotMatch(mainSource, /'ctrl-c'/);
@@ -155,5 +157,10 @@ test('tool call events are rendered as first-class transcript messages', () => {
   assert.match(stylesSource, /\.settings-icon/);
   assert.match(stylesSource, /\.session-drawer-subhead/);
   assert.match(stylesSource, /\.session-drawer-item/);
+  assert.match(stylesSource, /\.session-drawer \{/);
+  assert.match(stylesSource, /position: fixed/);
+  assert.match(stylesSource, /\.session-card strong,/);
+  assert.match(stylesSource, /text-overflow: ellipsis/);
+  assert.match(stylesSource, /white-space: nowrap/);
   assert.match(stylesSource, /\.message\.tool/);
 });

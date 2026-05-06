@@ -1774,11 +1774,6 @@ function AgentStream({ session, onCanonicalSession }) {
     if (!wasHidden) setInput('');
   }
 
-  function sendKey(key) {
-    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
-    socketRef.current.send(JSON.stringify({ type: 'key', key }));
-  }
-
   async function copyMessage(content) {
     await navigator.clipboard?.writeText(content);
   }
@@ -1862,11 +1857,6 @@ function AgentStream({ session, onCanonicalSession }) {
         <div className="prompt-row">
           <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Message..." />
           <button className="primary" onClick={() => { sendInput(); }}>Send</button>
-        </div>
-        <div className="special-keys">
-          {['up', 'down', 'enter'].map((key) => (
-            <button key={key} onClick={() => sendKey(key)}>{key}</button>
-          ))}
         </div>
       </div>
     </>
