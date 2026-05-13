@@ -130,6 +130,14 @@ function newestEventAt(events) {
   return newest;
 }
 
+function replayAfterCursor(cursor) {
+  const value = String(cursor || '').trim();
+  if (!value) return '';
+  const parsedMs = Date.parse(value);
+  if (!Number.isFinite(parsedMs)) return value;
+  return new Date(Math.max(0, parsedMs - 1)).toISOString();
+}
+
 function messageRoleLabel(role) {
   if (role === 'agent') return 'Agent';
   if (role === 'user') return 'You';
@@ -1610,7 +1618,7 @@ function AgentStream({ session, onCanonicalSession }) {
     setSessionStatus(announceAttach ? 'connecting' : 'reconnecting');
 
     const socketUrl = isStructured
-      ? structuredChatWebSocketUrl(sessionId, { after: lastStructuredAtRef.current })
+      ? structuredChatWebSocketUrl(sessionId, { after: replayAfterCursor(lastStructuredAtRef.current) })
       : terminalWebSocketUrl(sessionId);
     const socket = new WebSocket(socketUrl);
     socketRef.current = socket;

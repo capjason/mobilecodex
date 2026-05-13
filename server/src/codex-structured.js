@@ -67,11 +67,11 @@ export class CodexStructuredManager {
     return runtime.metadata;
   }
 
-  async findExistingResumeSession({ agent, repoPath, resumeTarget }) {
+  async findExistingResumeSession({ agent, repoPath, resumeTarget, requireRepoPath = true }) {
     const matchesResumeTarget = (metadata) => (
       metadata.runtime === 'structured' &&
       metadata.agent === agent &&
-      metadata.repoPath === repoPath &&
+      (!requireRepoPath || metadata.repoPath === repoPath) &&
       metadata.status === 'running' &&
       (metadata.threadId === resumeTarget || metadata.resumeTarget === resumeTarget)
     );
@@ -93,11 +93,23 @@ export class CodexStructuredManager {
     if (runtime) return runtime;
 
     const metadata = await readSessionMetadata({ stateDir: this.stateDir, sessionId });
-    if (metadata.runtime !== 'structured' || metadata.agent !== 'codex') {
+    if (metadata.agent !== 'codex') {
       return null;
     }
 
     const resumeTarget = metadata.threadId || metadata.resumeTarget || '';
+    if (metadata.runtime !== 'structured') {
+      if (!resumeTarget) return null;
+      const canonical = await this.findExistingResumeSession({
+        agent: metadata.agent,
+        repoPath: metadata.repoPath,
+        resumeTarget,
+        requireRepoPath: false
+      });
+      if (!canonical) return null;
+      return this.getOrStartRuntime(canonical);
+    }
+
     if (resumeTarget) {
       const canonical = await this.findExistingResumeSession({
         agent: metadata.agent,
@@ -162,11 +174,32 @@ export class CodexStructuredManager {
   }
 
   async getSessionHistory(sessionId, { offset = 0, limit = 300 } = {}) {
-    const metadata = await readSessionMetadata({ stateDir: this.stateDir, sessionId });
-    if (metadata.runtime !== 'structured' || metadata.agent !== 'codex') {
+    const metadata = await this.resolveHistoryMetadata(sessionId);
+    if (!metadata?.threadPath) {
       return { events: [], hasMore: false, nextOffset: 0 };
     }
     return readCodexThreadMessagesSlice(metadata.threadPath, { offset, limit });
+  }
+
+  async resolveHistoryMetadata(sessionId) {
+    const metadata = await readSessionMetadata({ stateDir: this.stateDir, sessionId });
+    if (metadata.runtime === 'structured' && metadata.agent === 'codex' && metadata.threadPath) {
+      return metadata;
+    }
+
+    if (metadata.agent !== 'codex') return null;
+    const resumeTarget = metadata.threadId || metadata.resumeTarget || '';
+    if (!resumeTarget) return null;
+
+    const sessions = await listSessionMetadata({ stateDir: this.stateDir });
+    return sessions
+      .filter((row) => (
+        row.runtime === 'structured' &&
+        row.agent === 'codex' &&
+        row.threadPath &&
+        (row.threadId === resumeTarget || row.resumeTarget === resumeTarget)
+      ))
+      .sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0))[0] || null;
   }
 
   async buildUniqueSessionId({ agent, repoName, date }) {

@@ -61,7 +61,7 @@ p {
 }
 
 h1 {
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.1;
 }
 
@@ -165,6 +165,15 @@ h1 {
 .session-picker-header > div,
 .chat-toolbar > div {
   min-width: 0;
+}
+
+.session-picker-header h1,
+.chat-toolbar h1 {
+  font-size: 15px;
+  line-height: 1.05;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .toolbar-actions {
@@ -311,8 +320,16 @@ h1 {
   padding: calc(6px + env(safe-area-inset-top)) 10px 6px;
   color: #0f172a;
   border-bottom: 1px solid #e2e8f0;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
+}
+
+.session-drawer-header span {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .session-drawer-new {
@@ -404,8 +421,16 @@ h1 {
   padding: calc(6px + env(safe-area-inset-top)) 10px 6px;
   color: #0f172a;
   border-bottom: 1px solid #e2e8f0;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
+}
+
+.settings-drawer-header span {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settings-field {
